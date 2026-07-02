@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="VoyageFi.API/VoyageFi.API.csproj" />
+  <Project Path="VoyageFi.Application/VoyageFi.Application.csproj" />
+  <Project Path="VoyageFi.Core/VoyageFi.Core.csproj" />
+  <Project Path="VoyageFi.Infrastructure/VoyageFi.Infrastructure.csproj" />
+</Solution>
