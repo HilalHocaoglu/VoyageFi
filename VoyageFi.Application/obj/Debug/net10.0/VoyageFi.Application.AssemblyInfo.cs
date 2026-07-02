@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VoyageFi.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d7d228e74ad235ea93fcfc3fd04c329ed67672ad")]
 [assembly: System.Reflection.AssemblyProductAttribute("VoyageFi.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VoyageFi.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

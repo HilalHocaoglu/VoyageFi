@@ -10,10 +10,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("5bcbd62c-69ab-401d-a810-3e04d376ffde")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("VoyageFi.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d7d228e74ad235ea93fcfc3fd04c329ed67672ad")]
 [assembly: System.Reflection.AssemblyProductAttribute("VoyageFi.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VoyageFi.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

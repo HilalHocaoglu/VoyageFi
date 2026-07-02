@@ -1,0 +1,12 @@
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/bin/Debug/net10.0/VoyageFi.Core.deps.json
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/bin/Debug/net10.0/VoyageFi.Core.dll
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/bin/Debug/net10.0/VoyageFi.Core.pdb
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.AssemblyInfoInputs.cache
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.AssemblyInfo.cs
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.csproj.CoreCompileInputs.cache
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.sourcelink.json
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.dll
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/refint/VoyageFi.Core.dll
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/VoyageFi.Core.pdb
+/Users/hilalhocaoglu/Desktop/VoyageFi/VoyageFi.Core/obj/Debug/net10.0/ref/VoyageFi.Core.dll

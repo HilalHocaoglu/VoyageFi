@@ -10,7 +10,7 @@ public class Trip
     public DateTime DepartureTime { get; set; }
     public string Status { get; set; } = "OnTime"; // OnTime, Delayed, Cancelled
 
-    // İlişkiler (Foreign Key ve Navigation Property)
+    
     public Guid UserId { get; set; }
     public User? User { get; set; }
 

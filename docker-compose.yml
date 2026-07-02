@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:latest
+    container_name: voyagefi_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supergizlisifre
+      POSTGRES_DB: VoyageFiDb
+    ports:
+      - "5432:5432"
+    restart: always
