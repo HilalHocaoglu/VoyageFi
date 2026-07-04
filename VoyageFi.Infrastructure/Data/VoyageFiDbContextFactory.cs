@@ -9,8 +9,8 @@ public class VoyageFiDbContextFactory : IDesignTimeDbContextFactory<VoyageFiDbCo
     {
         var optionsBuilder = new DbContextOptionsBuilder<VoyageFiDbContext>();
         
-        // Güvenlik: Şifre GitHub'a sızmasın diye yerel test için sahte bir değer girilmiştir.
-        optionsBuilder.UseNpgsql("Host=localhost;Database=VoyageFiDb;Username=postgres;Password=GIZLI_SIFRE");
+        // Güvenlik: Yerel test için Docker konteynerine (Port 5433) bağlanır.
+        optionsBuilder.UseNpgsql("Host=localhost;Port=5433;Database=VoyageFiDb;Username=postgres;Password=supergizlisifre");
 
         return new VoyageFiDbContext(optionsBuilder.Options);
     }

@@ -1,41 +1,129 @@
+using Microsoft.EntityFrameworkCore;
+using VoyageFi.API.Middlewares;
+using VoyageFi.Core.Interfaces;
+using VoyageFi.Infrastructure.Data;
+using VoyageFi.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using VoyageFi.Infrastructure.Authentication;
+using VoyageFi.Infrastructure.Caching;
+using Microsoft.OpenApi.Models;
+using VoyageFi.Infrastructure.BackgroundServices;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// 1. Veritabanı Bağlantısı
+builder.Services.AddDbContext<VoyageFiDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// 2. BAĞIMLILIK ENJEKSİYONU 
+// "Eğer biri senden ITripRepository isterse, ona TripRepository ver."
+builder.Services.AddScoped<ITripRepository, TripRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
+
+// HttpClient: TripUpdateWorker'ın dış API çağrıları yapabilmesi için
+builder.Services.AddHttpClient("AviationApi", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "VoyageFi/1.0");
+});
+
+// Background Worker: Saatte bir uçuş durumlarını kontrol eder
+builder.Services.AddHostedService<TripUpdateWorker>();
+
+// --- JWT ve Redis Konfigürasyonu Başlangıcı ---
+// Redis Cache Konfigürasyonu
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+});
+
+// JWT Authentication Konfigürasyonu
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key Ortam değişkeni eksik!");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.IncludeErrorDetails = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+// --- JWT ve Redis Konfigürasyonu Sonu ---
+
+// 3. Controller'ları aktif et
+builder.Services.AddControllers();
+
+// ---> SWAGGER 1: Sistemin kapılarını taraması için gereken servisler <---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "VoyageFi API", Version = "v1" });
+
+    // JWT Authentication for Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "LÜTFEN DİKKAT: Buraya SADECE token'ı yapıştırın. 'Bearer ' kelimesini YAZMAYIN, sistem otomatik olarak ekleyecektir. Örnek: 12345abcdef"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Hata yönetimini (Global Exception Handling) middleware üzerinden başlatıyoruz.
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// ---> SWAGGER 2: Geliştirme ortamındaysak tarayıcıda arayüzü göster <---
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseAuthentication(); // Kimlik doğrulama
+app.UseAuthorization();  // Yetki kontrolü
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+// JWT'nin Redis üzerinde blacklist'te olup olmadığını kontrol eden Middleware
+app.UseMiddleware<TokenBlacklistMiddleware>();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+
+
+// 4. Gelen HTTP isteklerini Controller'lara yönlendir
+app.MapControllers();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

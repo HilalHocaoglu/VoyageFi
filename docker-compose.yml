@@ -1,12 +1,22 @@
 version: '3.8'
 services:
   db:
-    image: postgres:latest
+    image: pgvector/pgvector:pg16  # pgvector eklentisini içeren resmi PostgreSQL imajı
     container_name: voyagefi_postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: supergizlisifre
-      POSTGRES_DB: VoyageFiDb
+    env_file:
+      - .env
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: voyagefi_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  postgres_data:
