@@ -13,6 +13,8 @@ using VoyageFi.Infrastructure.BackgroundServices;
 using VoyageFi.Infrastructure.AI;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using MassTransit;
+using VoyageFi.Infrastructure.Consumers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -87,6 +89,27 @@ builder.Services.AddAuthentication(options =>
     };
 });
 // --- JWT ve Redis Konfigürasyonu Sonu ---
+
+// --- MassTransit ve RabbitMQ Konfigürasyonu ---
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<FlightDelayedEventConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+        var rabbitUser = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+        var rabbitPass = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+
+        cfg.Host(rabbitHost, "/", h =>
+        {
+            h.Username(rabbitUser);
+            h.Password(rabbitPass);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // 3. Controller'ları aktif et
 builder.Services.AddControllers();

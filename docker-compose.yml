@@ -18,5 +18,13 @@ services:
       - "6379:6379"
     restart: always
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: voyagefi_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+
 volumes:
   postgres_data:

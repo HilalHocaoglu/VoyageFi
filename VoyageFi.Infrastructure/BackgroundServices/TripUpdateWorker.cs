@@ -84,10 +84,11 @@ public class TripUpdateWorker : BackgroundService
         //    Şimdilik yanıtı kullanmıyoruz; mantığı simüle ediyoruz.
         await CallAviationApiAsync(stoppingToken);
 
-        // 2. Kısa ömürlü scope ile DbContext ve RedisCacheService'i güvenle kullan
+        // 2. Kısa ömürlü scope ile DbContext, RedisCacheService ve IPublishEndpoint'i güvenle kullan
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<VoyageFiDbContext>();
         var cache = scope.ServiceProvider.GetRequiredService<VoyageFi.Core.Interfaces.IRedisCacheService>();
+        var publishEndpoint = scope.ServiceProvider.GetRequiredService<MassTransit.IPublishEndpoint>();
 
         // 3. Bugün kalkan aktif uçuşları al
         var today = DateTime.UtcNow.Date;
@@ -140,6 +141,23 @@ public class TripUpdateWorker : BackgroundService
             _logger.LogInformation(
                 "Trip {TripId} | PNR: {Pnr} → {OldStatus} → {NewStatus}",
                 trip.Id, trip.PnrCode, oldStatus, newStatus);
+                
+            // Uçuş rötar yaptıysa RabbitMQ üzerinden olayı fırlat
+            if (oldStatus == "OnTime" && newStatus == "Delayed")
+            {
+                var flightNumber = $"TK{_random.Next(1000, 9999)}"; // Simülasyon için rastgele uçuş numarası
+                var delayDuration = _random.Next(30, 180); // 30 ile 180 dk arası rötar
+                
+                var flightDelayedEvent = new VoyageFi.Core.Events.FlightDelayedEvent(
+                    trip.PnrCode,
+                    flightNumber,
+                    trip.UserId.ToString(),
+                    delayDuration
+                );
+                
+                await publishEndpoint.Publish(flightDelayedEvent, stoppingToken);
+                _logger.LogInformation("FlightDelayedEvent published to RabbitMQ for PNR: {Pnr}", trip.PnrCode);
+            }
         }
 
         // 5. Değişiklikleri kaydet
