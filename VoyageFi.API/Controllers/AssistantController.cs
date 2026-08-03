@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using VoyageFi.Application.Security;
 using VoyageFi.Core.Interfaces;
 using System.Security;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace VoyageFi.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("AiAssistantPolicy")]
 public class AssistantController : ControllerBase
 {
     private readonly IVoyageFiAgentService _agentService;

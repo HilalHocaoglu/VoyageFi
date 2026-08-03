@@ -11,6 +11,8 @@ using VoyageFi.Infrastructure.Caching;
 using Microsoft.OpenApi.Models;
 using VoyageFi.Infrastructure.BackgroundServices;
 using VoyageFi.Infrastructure.AI;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +43,23 @@ builder.Services.AddHostedService<TripUpdateWorker>();
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+});
+
+// Rate Limiting Konfigürasyonu
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AiAssistantPolicy", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+    });
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("Lütfen biraz bekleyip tekrar deneyin", token);
+    };
 });
 
 // JWT Authentication Konfigürasyonu
@@ -117,6 +136,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRateLimiter(); // Rate Limiting middleware'i
 app.UseAuthentication(); // Kimlik doğrulama
 app.UseAuthorization();  // Yetki kontrolü
 
