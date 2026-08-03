@@ -27,4 +27,23 @@ public class RedisCacheService : IRedisCacheService
         var value = await _cache.GetStringAsync($"blacklist:{jti}");
         return !string.IsNullOrEmpty(value);
     }
+
+    public async Task<string?> GetAsync(string key)
+    {
+        return await _cache.GetStringAsync(key);
+    }
+
+    public async Task SetAsync(string key, string value, TimeSpan expiration)
+    {
+        var options = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = expiration
+        };
+        await _cache.SetStringAsync(key, value, options);
+    }
+
+    public async Task RemoveAsync(string key)
+    {
+        await _cache.RemoveAsync(key);
+    }
 }

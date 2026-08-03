@@ -40,7 +40,7 @@ builder.Services.AddHostedService<TripUpdateWorker>();
 // Redis Cache Konfigürasyonu
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+    options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 });
 
 // JWT Authentication Konfigürasyonu

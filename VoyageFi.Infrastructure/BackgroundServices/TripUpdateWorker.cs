@@ -84,17 +84,38 @@ public class TripUpdateWorker : BackgroundService
         //    Şimdilik yanıtı kullanmıyoruz; mantığı simüle ediyoruz.
         await CallAviationApiAsync(stoppingToken);
 
-        // 2. Kısa ömürlü scope ile DbContext'i güvenle kullan
+        // 2. Kısa ömürlü scope ile DbContext ve RedisCacheService'i güvenle kullan
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<VoyageFiDbContext>();
+        var cache = scope.ServiceProvider.GetRequiredService<VoyageFi.Core.Interfaces.IRedisCacheService>();
 
         // 3. Bugün kalkan aktif uçuşları al
         var today = DateTime.UtcNow.Date;
-        var trips = await db.Trips
-            .Where(t => t.DepartureTime.Date == today && t.Status == "OnTime")
-            .ToListAsync(stoppingToken);
+        var cacheKey = $"trips:ontime:{today:yyyyMMdd}";
+        
+        List<VoyageFi.Core.Entities.Trip>? trips = null;
+        var cachedTrips = await cache.GetAsync(cacheKey);
+        
+        if (!string.IsNullOrEmpty(cachedTrips))
+        {
+            _logger.LogInformation("Aktif uçuşlar Redis Cache üzerinden getirildi.");
+            trips = System.Text.Json.JsonSerializer.Deserialize<List<VoyageFi.Core.Entities.Trip>>(cachedTrips);
+        }
+        else
+        {
+            _logger.LogInformation("Aktif uçuşlar veritabanından çekiliyor...");
+            trips = await db.Trips
+                .Where(t => t.DepartureTime.Date == today && t.Status == "OnTime")
+                .ToListAsync(stoppingToken);
+                
+            if (trips != null && trips.Any())
+            {
+                var serializedTrips = System.Text.Json.JsonSerializer.Serialize(trips);
+                await cache.SetAsync(cacheKey, serializedTrips, TimeSpan.FromMinutes(10));
+            }
+        }
 
-        if (!trips.Any())
+        if (trips == null || !trips.Any())
         {
             _logger.LogInformation("Bugün için güncellenecek aktif uçuş bulunamadı.");
             return;
@@ -110,6 +131,10 @@ public class TripUpdateWorker : BackgroundService
 
             var oldStatus = trip.Status;
             trip.Status = newStatus;
+            
+            // Eğer Redis'ten geldiyse EF Core track etmiyor olabilir. Attach edip güncelleyelim.
+            db.Update(trip);
+            
             updatedCount++;
 
             _logger.LogInformation(

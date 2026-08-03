@@ -7,8 +7,9 @@ namespace VoyageFi.Infrastructure.AI;
 public class VoyageFiAgentService : IVoyageFiAgentService
 {
     private readonly Kernel _kernel;
+    private readonly IRedisCacheService _cache;
 
-    public VoyageFiAgentService()
+    public VoyageFiAgentService(IRedisCacheService cache)
     {
         var builder = Kernel.CreateBuilder();
         
@@ -16,11 +17,23 @@ public class VoyageFiAgentService : IVoyageFiAgentService
         builder.Plugins.AddFromType<KnowledgeBasePlugin>("VoyageFiKB");
         
         _kernel = builder.Build();
+        _cache = cache;
     }
 
     public async Task<string> ResolveAsync(string prompt, CancellationToken cancellationToken = default)
     {
         var lowerPrompt = prompt.ToLowerInvariant();
+
+        // Cache Key Oluşturma (Prompt Hash'i)
+        var promptHash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(lowerPrompt)));
+        var cacheKey = $"ai_prompt:{promptHash}";
+
+        // Redis Cache Kontrolü
+        var cachedResponse = await _cache.GetAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedResponse))
+        {
+            return cachedResponse;
+        }
 
         // SIMULATION OF LLM FUNCTION CALLING
         // Since we have a fake API key, the LLM won't be able to return a tool call response directly.
@@ -48,11 +61,19 @@ Bulduğum Bilgiler:
 
 Özetle, havayolu şirketinizden yemek talep edebilir ve beklerken Garanti BBVA kartınızla Lounge'dan ücretsiz yararlanabilirsiniz.";
 
+            // Sonucu Redis'e kaydet (1 saat geçerli)
+            await _cache.SetAsync(cacheKey, synthesizedResponse, TimeSpan.FromHours(1));
+
             return synthesizedResponse;
         }
 
         // Generic fallback response for other prompts
-        return $"AI Ajanı Yanıtı: '{prompt}' talebinizi anladım. Size nasıl daha fazla yardımcı olabilirim?";
+        var fallbackResponse = $"AI Ajanı Yanıtı: '{prompt}' talebinizi anladım. Size nasıl daha fazla yardımcı olabilirim?";
+        
+        // Sonucu Redis'e kaydet (1 saat geçerli)
+        await _cache.SetAsync(cacheKey, fallbackResponse, TimeSpan.FromHours(1));
+
+        return fallbackResponse;
     }
 }
 
