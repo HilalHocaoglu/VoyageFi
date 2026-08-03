@@ -10,6 +10,7 @@ using VoyageFi.Infrastructure.Authentication;
 using VoyageFi.Infrastructure.Caching;
 using Microsoft.OpenApi.Models;
 using VoyageFi.Infrastructure.BackgroundServices;
+using VoyageFi.Infrastructure.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Services.AddScoped<ITripRepository, TripRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
+builder.Services.AddScoped<IVoyageFiAgentService, VoyageFiAgentService>();
 
 // HttpClient: TripUpdateWorker'ın dış API çağrıları yapabilmesi için
 builder.Services.AddHttpClient("AviationApi", client =>

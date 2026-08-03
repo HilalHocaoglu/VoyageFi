@@ -144,9 +144,13 @@ SAMPLE_DOCUMENTS: list[dict] = [
 def create_embeddings(client: OpenAI, texts: list[str]) -> list[list[float]]:
     """
     OpenAI API'ye toplu istek atarak metinlerin embedding'lerini döndürür.
-    Toplu işlem, API çağrı sayısını ve maliyeti önemli ölçüde azaltır.
+    Eğer sahte anahtar kullanılıyorsa simülasyon embedding'leri döner.
     """
     logger.info(f"{len(texts)} metin için embedding üretiliyor...")
+
+    if client.api_key.startswith("sk-BURAYA"):
+        logger.warning("Sahte API anahtarı algılandı! Simülasyon (dummy) vektörler üretiliyor...")
+        return [[0.1] * EMBEDDING_DIMENSIONS for _ in texts]
 
     response = client.embeddings.create(
         input=texts,
@@ -190,8 +194,8 @@ def load_to_database(docs: list[EnrichedDocument], db_url: str) -> None:
     Var olan kayıtları atlamak için ON CONFLICT DO NOTHING kullanılır.
     """
     conn = psycopg2.connect(db_url)
-    register_vector(conn)  # pgvector tipini psycopg2'ye tanıtır
-
+    
+    # EF Core tarafında EmbeddingRaw 'text' olduğu için json string olarak saklıyoruz.
     try:
         with conn.cursor() as cur:
             rows = [
@@ -200,7 +204,7 @@ def load_to_database(docs: list[EnrichedDocument], db_url: str) -> None:
                     doc.title,
                     doc.content,
                     doc.source_type,
-                    doc.embedding,
+                    json.dumps(doc.embedding), # Liste yerine JSON string olarak veritabanına yaz
                     doc.created_at,
                 )
                 for doc in docs
@@ -209,7 +213,7 @@ def load_to_database(docs: list[EnrichedDocument], db_url: str) -> None:
             execute_values(
                 cur,
                 """
-                INSERT INTO "Campaigns" ("Id", "Title", "Content", "SourceType", "Embedding", "CreatedAt")
+                INSERT INTO "Campaigns" ("Id", "Title", "Content", "SourceType", "EmbeddingRaw", "CreatedAt")
                 VALUES %s
                 ON CONFLICT ("Id") DO NOTHING
                 """,

@@ -22,6 +22,7 @@ public class TripUpdateWorker : BackgroundService
     private readonly HttpClient _httpClient;
 
     // Kaç dakikada bir kontrol yapılacağını buradan ayarlayın.
+    // Production için 1 saat olarak güncellendi.
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(1);
 
     // Uçuş verisi için kullanılacak sahte/gerçek API adresi.
@@ -45,9 +46,11 @@ public class TripUpdateWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation(
-            "TripUpdateWorker başlatıldı. İlk kontrol {Interval} sonra yapılacak.",
-            CheckInterval);
+        // İlk çalışmayı 1 saat sonraya ayarlıyoruz
+        var initialDelay = TimeSpan.FromHours(1);
+        _logger.LogInformation("TripUpdateWorker başlatıldı. İlk kontrol {Delay} sonra yapılacak.", initialDelay);
+            
+        await Task.Delay(initialDelay, stoppingToken);
 
         // Uygulama kapanana kadar döner
         while (!stoppingToken.IsCancellationRequested)
