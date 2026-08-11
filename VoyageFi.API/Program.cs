@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using VoyageFi.API.Hubs;
 using VoyageFi.API.Middlewares;
+using VoyageFi.API.Services;
 using VoyageFi.Core.Interfaces;
 using VoyageFi.Infrastructure.Data;
 using VoyageFi.Infrastructure.Repositories;
@@ -114,6 +116,12 @@ builder.Services.AddMassTransit(x =>
 // 3. Controller'ları aktif et
 builder.Services.AddControllers();
 
+// --- SignalR Konfigürasyonu ---
+// Gerçek zamanlı Admin Dashboard bildirimleri için SignalR servislerini kaydet
+builder.Services.AddSignalR();
+// IFlightNotificationService → SignalR implementasyonunu bağla
+builder.Services.AddScoped<IFlightNotificationService, SignalRFlightNotificationService>();
+
 // ---> SWAGGER 1: Sistemin kapılarını taraması için gereken servisler <---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -170,5 +178,9 @@ app.UseMiddleware<TokenBlacklistMiddleware>();
 
 // 4. Gelen HTTP isteklerini Controller'lara yönlendir
 app.MapControllers();
+
+// --- SignalR Hub Endpoint Mapping ---
+// Admin Dashboard ws://host/hubs/flight-monitor adresine bağlanarak anlık bildirimleri dinleyebilir
+app.MapHub<FlightMonitorHub>("/hubs/flight-monitor");
 
 app.Run();

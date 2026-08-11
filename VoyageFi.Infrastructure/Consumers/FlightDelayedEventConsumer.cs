@@ -1,19 +1,24 @@
 using MassTransit;
 using Microsoft.Extensions.Logging;
 using VoyageFi.Core.Events;
+using VoyageFi.Core.Interfaces;
 
 namespace VoyageFi.Infrastructure.Consumers;
 
 public class FlightDelayedEventConsumer : IConsumer<FlightDelayedEvent>
 {
     private readonly ILogger<FlightDelayedEventConsumer> _logger;
+    private readonly IFlightNotificationService _notificationService;
 
-    public FlightDelayedEventConsumer(ILogger<FlightDelayedEventConsumer> logger)
+    public FlightDelayedEventConsumer(
+        ILogger<FlightDelayedEventConsumer> logger,
+        IFlightNotificationService notificationService)
     {
         _logger = logger;
+        _notificationService = notificationService;
     }
 
-    public Task Consume(ConsumeContext<FlightDelayedEvent> context)
+    public async Task Consume(ConsumeContext<FlightDelayedEvent> context)
     {
         var message = context.Message;
         
@@ -24,6 +29,12 @@ public class FlightDelayedEventConsumer : IConsumer<FlightDelayedEvent>
             message.DelayDurationMinutes,
             message.UserId);
 
-        return Task.CompletedTask;
+        // Admin Dashboard'a gerçek zamanlı rötar bildirimi gönder
+        await _notificationService.BroadcastFlightDelayAsync(
+            pnrCode: message.PnrCode,
+            flightNumber: message.FlightNumber,
+            userId: message.UserId,
+            delayDurationMinutes: message.DelayDurationMinutes,
+            cancellationToken: context.CancellationToken);
     }
 }
