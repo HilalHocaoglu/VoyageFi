@@ -96,6 +96,8 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<FlightDelayedEventConsumer>();
+    x.AddConsumer<AdminCommandConsumer>(); // FAZ 2 – Adım 1: Bidirectional Command Bus
+
 
     x.UsingRabbitMq((context, cfg) =>
     {
