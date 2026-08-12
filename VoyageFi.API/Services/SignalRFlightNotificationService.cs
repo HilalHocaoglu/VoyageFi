@@ -45,4 +45,50 @@ public class SignalRFlightNotificationService : IFlightNotificationService
             },
             cancellationToken);
     }
+
+    public async Task BroadcastAuditEntryAsync(
+        Guid auditId,
+        string actor,
+        string command,
+        string flightNumber,
+        string result,
+        int durationMs,
+        DateTime createdAt,
+        CancellationToken cancellationToken = default)
+    {
+        await _hubContext.Clients.All.SendAsync(
+            "ReceiveAuditEntry",
+            new
+            {
+                auditId = auditId,
+                actor = actor,
+                command = command,
+                flightNumber = flightNumber,
+                result = result,
+                durationMs = durationMs,
+                createdAt = createdAt
+            },
+            cancellationToken);
+    }
+    public async Task BroadcastIncidentAlertAsync(
+        string flightNumber,
+        string reason,
+        int delayDurationMinutes,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning(
+            "🚨 [SignalR] Kriz Alarmı (Incident Alert) yayınlanıyor: {FlightNumber} | Sebep: {Reason}",
+            flightNumber, reason);
+
+        await _hubContext.Clients.All.SendAsync(
+            "ReceiveIncidentAlert",
+            new
+            {
+                FlightNumber = flightNumber,
+                Reason = reason,
+                DelayDurationMinutes = delayDurationMinutes,
+                Timestamp = DateTime.UtcNow
+            },
+            cancellationToken);
+    }
 }

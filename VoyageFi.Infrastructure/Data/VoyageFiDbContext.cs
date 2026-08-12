@@ -18,7 +18,13 @@ public class VoyageFiDbContext : DbContext
     /// RAG için banka kampanyaları ve SHGM yolcu haklarını
     /// vektör embedding'leriyle birlikte tutan tablo.
     /// </summary>
-    public DbSet<Campaign> Campaigns { get; set; }
+    public DbSet<Campaign>      Campaigns      { get; set; }
+
+    /// <summary>
+    /// FAZ 2 – Adım 3: Her admin komutunun değişmez kayıt tablosu.
+    /// </summary>
+    public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
