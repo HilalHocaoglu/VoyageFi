@@ -22,16 +22,14 @@ public class TripUpdateWorker : BackgroundService
     private readonly HttpClient _httpClient;
 
     // Kaç dakikada bir kontrol yapılacağını buradan ayarlayın.
-    // Production için 1 saat olarak güncellendi.
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(1);
+    // Test amaçlı 15 saniye olarak güncellendi.
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(15);
 
     // Uçuş verisi için kullanılacak sahte/gerçek API adresi.
     // Gerçek entegrasyonda appsettings'ten okunmalıdır.
     private const string AviationApiUrl =
         "https://api.aviationstack.com/v1/flights?access_key=YOUR_KEY&limit=10";
 
-    // Rastgele durum ataması için olası değerler
-    private static readonly string[] PossibleStatuses = ["OnTime", "Delayed", "Cancelled"];
     private readonly Random _random = new();
 
     public TripUpdateWorker(
@@ -46,8 +44,8 @@ public class TripUpdateWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // İlk çalışmayı 1 saat sonraya ayarlıyoruz
-        var initialDelay = TimeSpan.FromHours(1);
+        // İlk çalışmayı 5 saniye sonraya ayarlıyoruz (Test için)
+        var initialDelay = TimeSpan.FromSeconds(5);
         _logger.LogInformation("TripUpdateWorker başlatıldı. İlk kontrol {Delay} sonra yapılacak.", initialDelay);
             
         await Task.Delay(initialDelay, stoppingToken);
@@ -77,100 +75,56 @@ public class TripUpdateWorker : BackgroundService
 
     private async Task CheckAndUpdateTripsAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("[{Time}] Uçuş durumları kontrol ediliyor...", DateTime.UtcNow);
+        _logger.LogInformation("[{Time}] [MOCK MODE] Uçuş rötar simülasyonu başlatılıyor...", DateTime.UtcNow);
 
-        // 1. Sahte/gerçek API'yi çağır
-        //    Gerçek entegrasyonda bu response parse edilip PNR'a göre eşleşme yapılır.
-        //    Şimdilik yanıtı kullanmıyoruz; mantığı simüle ediyoruz.
-        await CallAviationApiAsync(stoppingToken);
-
-        // 2. Kısa ömürlü scope ile DbContext, RedisCacheService ve IPublishEndpoint'i güvenle kullan
         await using var scope = _scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<VoyageFiDbContext>();
-        var cache = scope.ServiceProvider.GetRequiredService<VoyageFi.Core.Interfaces.IRedisCacheService>();
         var publishEndpoint = scope.ServiceProvider.GetRequiredService<MassTransit.IPublishEndpoint>();
 
-        // 3. Bugün kalkan aktif uçuşları al
-        var today = DateTime.UtcNow.Date;
-        var cacheKey = $"trips:ontime:{today:yyyyMMdd}";
-        
-        List<VoyageFi.Core.Entities.Trip>? trips = null;
-        var cachedTrips = await cache.GetAsync(cacheKey);
-        
-        if (!string.IsNullOrEmpty(cachedTrips))
-        {
-            _logger.LogInformation("Aktif uçuşlar Redis Cache üzerinden getirildi.");
-            trips = System.Text.Json.JsonSerializer.Deserialize<List<VoyageFi.Core.Entities.Trip>>(cachedTrips);
-        }
-        else
-        {
-            _logger.LogInformation("Aktif uçuşlar veritabanından çekiliyor...");
-            trips = await db.Trips
-                .Where(t => t.DepartureTime.Date == today && t.Status == "OnTime")
-                .ToListAsync(stoppingToken);
-                
-            if (trips != null && trips.Any())
-            {
-                var serializedTrips = System.Text.Json.JsonSerializer.Serialize(trips);
-                await cache.SetAsync(cacheKey, serializedTrips, TimeSpan.FromMinutes(10));
-            }
-        }
+        // Bu döngüde 1-3 arasında rastgele rötar eventi yayınla
+        var eventCount = _random.Next(1, 4);
 
-        if (trips == null || !trips.Any())
+        for (var i = 0; i < eventCount; i++)
         {
-            _logger.LogInformation("Bugün için güncellenecek aktif uçuş bulunamadı.");
-            return;
-        }
-
-        // 4. Simülasyon: Her uçuşa rastgele durum ata
-        //    (Gerçek entegrasyonda API yanıtındaki veriye göre yapılır)
-        var updatedCount = 0;
-        foreach (var trip in trips)
-        {
-            var newStatus = PossibleStatuses[_random.Next(PossibleStatuses.Length)];
-            if (trip.Status == newStatus) continue;
-
-            var oldStatus = trip.Status;
-            trip.Status = newStatus;
-            
-            // Eğer Redis'ten geldiyse EF Core track etmiyor olabilir. Attach edip güncelleyelim.
-            db.Update(trip);
-            
-            updatedCount++;
+            var mockFlightNumber   = $"TK{_random.Next(100, 9999):D4}";
+            var mockPnrCode        = GenerateMockPnr();
+            var mockUserId         = Guid.NewGuid().ToString();
+            var mockDelayMinutes   = _random.Next(15, 240); // 15 dk – 4 saat arası rötar
 
             _logger.LogInformation(
-                "Trip {TripId} | PNR: {Pnr} → {OldStatus} → {NewStatus}",
-                trip.Id, trip.PnrCode, oldStatus, newStatus);
-                
-            // Uçuş rötar yaptıysa RabbitMQ üzerinden olayı fırlat
-            if (oldStatus == "OnTime" && newStatus == "Delayed")
-            {
-                var flightNumber = $"TK{_random.Next(1000, 9999)}"; // Simülasyon için rastgele uçuş numarası
-                var delayDuration = _random.Next(30, 180); // 30 ile 180 dk arası rötar
-                
-                var flightDelayedEvent = new VoyageFi.Core.Events.FlightDelayedEvent(
-                    trip.PnrCode,
-                    flightNumber,
-                    trip.UserId.ToString(),
-                    delayDuration
-                );
-                
-                await publishEndpoint.Publish(flightDelayedEvent, stoppingToken);
-                _logger.LogInformation("FlightDelayedEvent published to RabbitMQ for PNR: {Pnr}", trip.PnrCode);
-            }
+                "✈️ [MOCK] Rötar eventi hazırlanıyor → Uçuş: {Flight} | PNR: {Pnr} | Rötar: {Delay} dk",
+                mockFlightNumber, mockPnrCode, mockDelayMinutes);
+
+            var flightDelayedEvent = new VoyageFi.Core.Events.FlightDelayedEvent(
+                mockPnrCode,
+                mockFlightNumber,
+                mockUserId,
+                mockDelayMinutes
+            );
+
+            await publishEndpoint.Publish(flightDelayedEvent, stoppingToken);
+
+            _logger.LogInformation(
+                "📨 [MOCK] FlightDelayedEvent → RabbitMQ'ya iletildi: {Flight} ({Delay} dk)",
+                mockFlightNumber, mockDelayMinutes);
+
+            // Eventler arasında kısa bir aralık bırak (daha gerçekçi akış görünümü için)
+            await Task.Delay(TimeSpan.FromMilliseconds(300), stoppingToken);
         }
 
-        // 5. Değişiklikleri kaydet
-        if (updatedCount > 0)
-        {
-            await db.SaveChangesAsync(stoppingToken);
-            _logger.LogInformation("{Count} uçuşun durumu güncellendi.", updatedCount);
-        }
-        else
-        {
-            _logger.LogInformation("Durumu değişen uçuş yok.");
-        }
+        _logger.LogInformation("[MOCK MODE] {Count} rötar eventi bu döngüde yayınlandı.", eventCount);
     }
+
+    /// <summary>
+    /// 6 karakterlik rastgele PNR kodu üretir (örn: "VF7A2K")
+    /// </summary>
+    private string GenerateMockPnr()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        return "VF" + new string(Enumerable.Range(0, 4)
+            .Select(_ => chars[_random.Next(chars.Length)])
+            .ToArray());
+    }
+
 
     private async Task CallAviationApiAsync(CancellationToken stoppingToken)
     {

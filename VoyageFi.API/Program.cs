@@ -122,6 +122,17 @@ builder.Services.AddSignalR();
 // IFlightNotificationService → SignalR implementasyonunu bağla
 builder.Services.AddScoped<IFlightNotificationService, SignalRFlightNotificationService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVite", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // ---> SWAGGER 1: Sistemin kapılarını taraması için gereken servisler <---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -166,6 +177,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("AllowVite");
 
 app.UseRateLimiter(); // Rate Limiting middleware'i
 app.UseAuthentication(); // Kimlik doğrulama
