@@ -12,7 +12,7 @@ namespace VoyageFi.API.Controllers;
 /// Adım 1 için [Authorize] kaldırıldı — Adım 2+ ile JWT koruması geri eklenir.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/commands")] // Frontend: fetch('/api/commands/dispatch') ile birebir eşleşir
 public class CommandController : ControllerBase
 {
     private readonly IBus _bus;

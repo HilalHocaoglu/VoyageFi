@@ -31,6 +31,8 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
 builder.Services.AddScoped<IVoyageFiAgentService, VoyageFiAgentService>();
+builder.Services.AddScoped<IAiContextStore, AiContextStore>(); // FAZ 2 – Adım 2: AI Brain Redis Store
+
 
 // HttpClient: TripUpdateWorker'ın dış API çağrıları yapabilmesi için
 builder.Services.AddHttpClient("AviationApi", client =>
