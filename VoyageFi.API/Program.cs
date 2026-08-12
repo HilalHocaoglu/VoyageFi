@@ -3,6 +3,7 @@ using VoyageFi.API.Hubs;
 using VoyageFi.API.Middlewares;
 using VoyageFi.API.Services;
 using VoyageFi.Core.Interfaces;
+using Microsoft.SemanticKernel;
 using VoyageFi.Infrastructure.Data;
 using VoyageFi.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,6 +33,21 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
 builder.Services.AddScoped<IVoyageFiAgentService, VoyageFiAgentService>();
 builder.Services.AddScoped<IAiContextStore, AiContextStore>(); // FAZ 2 – Adım 2: AI Brain Redis Store
+builder.Services.AddScoped<IPassengerAiService, PassengerAiService>();
+builder.Services.AddSingleton<PassengerSessionStore>(); // FAZ 3 – Saga: per-PNR oturum hafızası
+
+// --- Semantic Kernel & Gemini Konfigürasyonu ---
+var geminiApiKey = builder.Configuration["Gemini:ApiKey"];
+if (string.IsNullOrEmpty(geminiApiKey))
+{
+    throw new ArgumentNullException("Gemini:ApiKey", "Gemini API Key eksik! Terminalinizde şu komutu çalıştırın: dotnet user-secrets set \"Gemini:ApiKey\" \"Sizin-Keyiniz\"");
+}
+
+var kernelBuilder = builder.Services.AddKernel();
+kernelBuilder.AddGoogleAIGeminiChatCompletion(
+    modelId: "gemini-2.5-flash",
+    apiKey: geminiApiKey
+);
 
 
 // HttpClient: TripUpdateWorker'ın dış API çağrıları yapabilmesi için
@@ -199,5 +215,8 @@ app.MapControllers();
 // --- SignalR Hub Endpoint Mapping ---
 // Admin Dashboard ws://host/hubs/flight-monitor adresine bağlanarak anlık bildirimleri dinleyebilir
 app.MapHub<FlightMonitorHub>("/hubs/flight-monitor");
+
+// Yolcu Arayüzü ws://host/hubs/passenger-ai adresine bağlanarak AI ile sohbet edebilir
+app.MapHub<PassengerAiHub>("/hubs/passenger-ai");
 
 app.Run();
